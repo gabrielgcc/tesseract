@@ -1,81 +1,87 @@
 #include "raylib.h"
 #include <array>
+#include <cstddef>
+#include <iostream>
 
 using namespace std;
 
 /*
-
 TODO:
 - Fix vscodium errors
-- Update tesseract
+- Draw the edges
+- Animate the points
+- Fix projection matrix
+- Refactor points as array
 */
 
-class Point {
-public:
-    void setCoords(float x, float y, float z) {
-        coordx = x;
-        coordy = y;
-        coordz = z;
-    }
-
-    Vector3 returnCoords() const {  // Ahora es const
-        return (Vector3){ coordx, coordy, coordz };
-    }
-
-private:
-    float coordx, coordy, coordz;
-};
+typedef float Matrix3x4[3][4];
 
 class Tesseract {
 public:
     Tesseract() {
-        constexpr float scales[] = {1.0f, 2.0f}; // Para el cubo pequeño y grande
-
-        int idx = 0;
-        for (float scale : scales) {
-            for (int i = 0; i < 8; ++i) {
-                float x = ((i & 1) ? -1.0f : 1.0f) * scale;
-                float y = ((i & 2) ? -1.0f : 1.0f) * scale;
-                float z = ((i & 4) ? -1.0f : 1.0f) * scale;
-                points[idx++].setCoords(x, y, z);
-            }
-        }
+        points[0] = {-1.0f, -1.0f, -1.0f, -1.0f};
+        points[1] = {-1.0f, -1.0f, -1.0f, 1.0f};
+        points[2] = {-1.0f, -1.0f, 1.0f, -1.0f};
+        points[3] = {-1.0f, -1.0f, 1.0f, 1.0f};
+        points[4] = {-1.0f, 1.0f, -1.0f, -1.0f};
+        points[5] = {-1.0f, 1.0f, -1.0f, 1.0f};
+        points[6] = {-1.0f, 1.0f, 1.0f, -1.0f};
+        points[7] = {-1.0f, 1.0f, 1.0f, 1.0f};
+        points[8] = {1.0f, -1.0f, -1.0f, -1.0f};
+        points[9] = {1.0f, -1.0f, -1.0f, 1.0f};
+        points[10] = {1.0f, -1.0f, 1.0f, -1.0f};
+        points[11] = {1.0f, -1.0f, 1.0f, 1.0f};
+        points[12] = {1.0f, 1.0f, -1.0f, -1.0f};
+        points[13] = {1.0f, 1.0f, -1.0f, 1.0f};
+        points[14] = {1.0f, 1.0f, 1.0f, -1.0f};
+        points[15] = {1.0f, 1.0f, 1.0f, 1.0f};
     }
 
-
     void drawTesseract() {
-        // 1) Aristas del cubo pequeño (índices 0–7)
-        for (int i = 0; i < 8; ++i) {
-            // Recorre las 3 dimensiones: 0=x, 1=y, 2=z
-            for (int axis = 0; axis < 3; ++axis) {
-                int j = i ^ (1 << axis);          // Muta el bit correspondiente
-                if (i < j)                        // Para no dibujar cada arista dos veces
-                    drawLine(points[i], points[j]);
+        array<Vector3, 16> V = projected();
+        
+        for (int i = 0; i < 16; ++i) {
+            for (int d = 0; d < 4; ++d) {
+                int j = i ^ (1 << d);
+                if (j > i) { // para no repetir la misma arista dos veces
+                    DrawLine3D(V[i], V[j], MAROON);
+                }
             }
         }
 
-        // 2) Aristas del cubo grande (índices 8–15)
-        for (int i = 8; i < 16; ++i) {
-            for (int axis = 0; axis < 3; ++axis) {
-                int j = (i ^ (1 << axis));
-                // Asegúrate de que j también esté en [8..15]
-                if (j > i && j < 16)
-                    drawLine(points[i], points[j]);
-            }
-        }
-
-        // 3) Aristas que unen cada vértice pequeño con el vértice grande correspondiente
-        //    (i con i+8 para i = 0..7)
-        for (int i = 0; i < 8; ++i) {
-            drawLine(points[i], points[i + 8]);
-        }
     }
 
 private:
-    array<Point, 16> points;
+    array<Vector4, 16> points;
 
-    void drawLine(const Point& a, const Point& b) {
-        DrawLine3D(a.returnCoords(), b.returnCoords(), MAROON);
+    Vector3 project (Vector4 v) {
+        Vector3 result;
+        
+        float distance = 0.5f;
+        float w = 1.0f / (distance - v.w);
+
+        // R4 -> R3 projection matrix
+        Matrix3x4 m = {
+        {w, 0.0f, 0.0f, 0.0f},
+        {0.0f, w, 0.0f, 0.0f},
+        {0.0f, 0.0f, w, 0.0f}
+        };
+
+        result.x = m[0][0]*v.x + m[0][1]*v.y + m[0][2]*v.z + m[0][3]*v.w;
+        result.y = m[1][0]*v.x + m[1][1]*v.y + m[1][2]*v.z + m[1][3]*v.w;
+        result.z = m[2][0]*v.x + m[2][1]*v.y + m[2][2]*v.z + m[2][3]*v.w;
+        
+        return result;
+    }
+
+    array<Vector3, 16> projected() {
+        array<Vector3, 16> r;
+
+        for (size_t i = 0; i < 16; ++i) {
+            r[i] = project(points[i]);
+        }
+
+        return r;
     }
 };
 
@@ -88,13 +94,14 @@ int main (int argc, char *argv[]) {
 
   // Define the camera to look into our 3d world
     Camera3D camera = { 0 };
-    camera.position = (Vector3){ 10.0f, 10.0f, 10.0f };  // Camera position
+    camera.position = (Vector3){ 10.0f, 10.0f, 10.0f }; // Camera position
     camera.target = (Vector3){ 0.0f, 0.0f, 0.0f };      // Camera looking at point
     camera.up = (Vector3){ 0.0f, 1.0f, 0.0f };          // Camera up vector (rotation towards target)
     camera.fovy = 45.0f;                                // Camera field-of-view Y
-    camera.projection = CAMERA_PERSPECTIVE;             // Camera mode type
+    camera.projection = CAMERA_PERSPECTIVE;             // Camera projection type
+    
+    DisableCursor();
 
-    Vector3 cubePosition = { 0.0f, 0.0f, 0.0f };
     Tesseract tesseract;
 
     SetTargetFPS(60);               // Set our game to run at 60 frames-per-second
@@ -103,7 +110,9 @@ int main (int argc, char *argv[]) {
     {
         // Update
         //----------------------------------------------------------------------------------
-        // TODO: Update your variables here
+        UpdateCamera(&camera, CAMERA_FREE);
+
+        if (IsKeyPressed('Z')) camera.target = (Vector3){ 0.0f, 0.0f, 0.0f };
         //----------------------------------------------------------------------------------
 
         // Draw

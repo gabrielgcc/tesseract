@@ -2,3 +2,4 @@
 .cache/clangd/index/tesseract.cpp.6E0E31BA33452D4D.idx
 compile_commands.json
 tesseract
+raylib.h
