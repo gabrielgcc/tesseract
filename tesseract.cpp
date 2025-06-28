@@ -1,20 +1,22 @@
 #include "raylib.h"
 #include <array>
 #include <cstddef>
-#include <iostream>
 
 using namespace std;
 
 /*
 TODO:
 - Fix vscodium errors
-- Draw the edges
+- Draw the edges (better)
 - Animate the points
-- Fix projection matrix
-- Refactor points as array
+- Un-hardcode tesseract vertexes
+- struct colours to debug
 */
 
 typedef float Matrix3x4[3][4];
+typedef struct {
+
+} Colours;
 
 class Tesseract {
 public:
@@ -41,14 +43,14 @@ public:
         array<Vector3, 16> V = projected();
         
         for (int i = 0; i < 16; ++i) {
+            DrawCube(V[i], 0.2f, 0.2f, 0.2f, RED);
             for (int d = 0; d < 4; ++d) {
                 int j = i ^ (1 << d);
-                if (j > i) { // para no repetir la misma arista dos veces
+                if (j > i) { 
                     DrawLine3D(V[i], V[j], MAROON);
                 }
             }
         }
-
     }
 
 private:
@@ -67,10 +69,13 @@ private:
         {0.0f, 0.0f, w, 0.0f}
         };
 
+        // Multiply vector * matrix
+        //----------------------------------------------------------------------------------
         result.x = m[0][0]*v.x + m[0][1]*v.y + m[0][2]*v.z + m[0][3]*v.w;
         result.y = m[1][0]*v.x + m[1][1]*v.y + m[1][2]*v.z + m[1][3]*v.w;
         result.z = m[2][0]*v.x + m[2][1]*v.y + m[2][2]*v.z + m[2][3]*v.w;
-        
+        //----------------------------------------------------------------------------------
+
         return result;
     }
 
@@ -85,7 +90,7 @@ private:
     }
 };
 
-int main (int argc, char *argv[]) {
+int main () {
   
   const int screenWidth = 800;
   const int screenHeight= 600;
